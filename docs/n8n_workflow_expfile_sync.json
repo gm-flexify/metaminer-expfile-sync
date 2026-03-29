@@ -1,484 +1,544 @@
 {
-	"name": "ExpFile Sync v2 — FB Import + Keitaro Sync",
-	"nodes": [
-		{
-			"parameters": {
-				"content": "## 📁 FB Import via Telegram\nВідправ .xlsx або .csv в чат → бот імпортує в БД.\n**POST** `/v2/api/v1/fb/import-report`\n**Відповідь:** campaigns_upserted, insights_upserted, skipped\n\n⚠️ Підключи Telegram credentials до всіх Telegram-вузлів цього блоку.",
-				"height": 220,
-				"width": 700,
-				"color": 6
-			},
-			"type": "n8n-nodes-base.stickyNote",
-			"typeVersion": 1,
-			"position": [-560, -1280],
-			"id": "sticky-fb-import",
-			"name": "Sticky FB Import"
-		},
+  "name": "ExpFile Sync v2 — FB Import + Keitaro Sync",
+  "nodes": [
 
-		{
-			"parameters": {
-				"updates": ["message"],
-				"additionalFields": {}
-			},
-			"type": "n8n-nodes-base.telegramTrigger",
-			"typeVersion": 1.1,
-			"position": [-560, -1024],
-			"id": "tg-trigger",
-			"name": "Telegram Trigger",
-			"webhookId": "expfile-v2-tg-trigger",
-			"credentials": {
-				"telegramApi": {
-					"id": "LdEYEJzAEXqpis2J",
-					"name": "MiniApp FB Upload Report File BOT"
-				}
-			}
-		},
+    {
+      "parameters": {
+        "content": "## FB Import via Telegram\nВідправ .xlsx або .csv в чат → бот імпортує в БД.\n**POST** `/v2/api/v1/fb/import-report`\n**Відповідь:** campaigns_upserted, insights_upserted, skipped\n\nПісля успішного імпорту автоматично запускається KT sync у фоні\nдля дат з файлу (bg_tasks.py — не потрібен окремий n8n вузол).",
+        "height": 240,
+        "width": 780,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, -1320],
+      "id": "sticky-fb-import",
+      "name": "Sticky FB Import"
+    },
 
-		{
-			"parameters": {
-				"conditions": {
-					"options": {
-						"caseSensitive": true,
-						"leftValue": "",
-						"typeValidation": "strict",
-						"version": 3
-					},
-					"conditions": [
-						{
-							"id": "cond-has-doc",
-							"leftValue": "={{ $json.message.document.file_id }}",
-							"rightValue": "",
-							"operator": {
-								"type": "string",
-								"operation": "notEmpty",
-								"singleValue": true
-							}
-						}
-					],
-					"combinator": "and"
-				},
-				"options": {}
-			},
-			"type": "n8n-nodes-base.filter",
-			"typeVersion": 2.3,
-			"position": [-300, -1024],
-			"id": "filter-has-doc",
-			"name": "Filter has document"
-		},
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [-560, -1040],
+      "id": "tg-trigger",
+      "name": "Telegram Trigger",
+      "webhookId": "expfile-v2-tg-trigger",
+      "credentials": {
+        "telegramApi": {
+          "id": "LdEYEJzAEXqpis2J",
+          "name": "MiniApp FB Upload Report File BOT"
+        }
+      }
+    },
 
-		{
-			"parameters": {
-				"resource": "file",
-				"operation": "get",
-				"fileId": "={{ $json.message.document.file_id }}",
-				"download": true,
-				"additionalFields": {}
-			},
-			"type": "n8n-nodes-base.telegram",
-			"typeVersion": 1.2,
-			"position": [-40, -1024],
-			"id": "tg-get-file",
-			"name": "Telegram Get File",
-			"credentials": {
-				"telegramApi": {
-					"id": "LdEYEJzAEXqpis2J",
-					"name": "MiniApp FB Upload Report File BOT"
-				}
-			}
-		},
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "cond-has-doc",
+              "leftValue": "={{ $json.message.document.file_id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [-300, -1040],
+      "id": "filter-has-doc",
+      "name": "Filter has document"
+    },
 
-		{
-			"parameters": {
-				"method": "POST",
-				"url": "https://metaminer.flexifyai.pro/v2/api/v1/fb/import-report?dry_run=false",
-				"sendBody": true,
-				"contentType": "multipart-form-data",
-				"bodyParameters": {
-					"parameters": [
-						{
-							"parameterType": "formBinaryData",
-							"name": "file",
-							"inputDataFieldName": "data"
-						}
-					]
-				},
-				"options": {
-					"response": {
-						"response": { "neverError": true, "fullResponse": true }
-					},
-					"timeout": 300000
-				}
-			},
-			"type": "n8n-nodes-base.httpRequest",
-			"typeVersion": 4.3,
-			"position": [220, -1024],
-			"id": "post-fb-import",
-			"name": "POST FB import-report"
-		},
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.message.document.file_id }}",
+        "download": true,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [-40, -1040],
+      "id": "tg-get-file",
+      "name": "Telegram Get File",
+      "credentials": {
+        "telegramApi": {
+          "id": "LdEYEJzAEXqpis2J",
+          "name": "MiniApp FB Upload Report File BOT"
+        }
+      }
+    },
 
-		{
-			"parameters": {
-				"conditions": {
-					"options": {
-						"caseSensitive": true,
-						"leftValue": "",
-						"typeValidation": "strict",
-						"version": 3
-					},
-					"conditions": [
-						{
-							"id": "cond-http-200",
-							"leftValue": "={{ $json.statusCode }}",
-							"rightValue": 200,
-							"operator": { "type": "number", "operation": "equals" }
-						}
-					],
-					"combinator": "and"
-				},
-				"options": {}
-			},
-			"type": "n8n-nodes-base.if",
-			"typeVersion": 2.3,
-			"position": [480, -1024],
-			"id": "if-fb-200",
-			"name": "If FB HTTP 200"
-		},
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://metaminer.flexifyai.pro/v2/api/v1/fb/import-report?dry_run=false",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "response": { "response": { "neverError": true, "fullResponse": true } },
+          "timeout": 300000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [220, -1040],
+      "id": "post-fb-import",
+      "name": "POST FB import-report"
+    },
 
-		{
-			"parameters": {
-				"chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
-				"text": "=✅ *FB Import OK*\nКампаній: `{{ $json.body.campaigns_upserted }}`\nInsights: `{{ $json.body.insights_upserted }}`\n{{ $json.body.skipped && $json.body.skipped.length > 0 ? '⚠️ Пропущено рядків: ' + $json.body.skipped.length : '' }}",
-				"additionalFields": {
-					"parse_mode": "Markdown",
-					"appendAttribution": false
-				}
-			},
-			"type": "n8n-nodes-base.telegram",
-			"typeVersion": 1.2,
-			"position": [740, -1104],
-			"id": "tg-reply-ok",
-			"name": "Telegram Reply OK",
-			"credentials": {
-				"telegramApi": {
-					"id": "LdEYEJzAEXqpis2J",
-					"name": "MiniApp FB Upload Report File BOT"
-				}
-			}
-		},
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "cond-http-200",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": { "type": "number", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [480, -1040],
+      "id": "if-fb-200",
+      "name": "If FB HTTP 200"
+    },
 
-		{
-			"parameters": {
-				"chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
-				"text": "=❌ *FB Import Failed* (HTTP {{ $json.statusCode }})\n`{{ $json.body.message || JSON.stringify($json.body) }}`",
-				"additionalFields": {
-					"parse_mode": "Markdown"
-				}
-			},
-			"type": "n8n-nodes-base.telegram",
-			"typeVersion": 1.2,
-			"position": [740, -944],
-			"id": "tg-reply-err",
-			"name": "Telegram Reply Error",
-			"credentials": {
-				"telegramApi": {
-					"id": "LdEYEJzAEXqpis2J",
-					"name": "MiniApp FB Upload Report File BOT"
-				}
-			}
-		},
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=✅ *FB Import OK*\nКампаній: `{{ $json.body.campaigns_upserted }}`\nInsights: `{{ $json.body.insights_upserted }}`\n{{ $json.body.skipped && $json.body.skipped.length > 0 ? '⚠️ Пропущено рядків: ' + $json.body.skipped.length : '' }}\n_KT sync запущено у фоні_",
+        "additionalFields": { "parse_mode": "Markdown", "appendAttribution": false }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [740, -1120],
+      "id": "tg-reply-ok",
+      "name": "Telegram Reply OK",
+      "credentials": {
+        "telegramApi": {
+          "id": "LdEYEJzAEXqpis2J",
+          "name": "MiniApp FB Upload Report File BOT"
+        }
+      }
+    },
 
-		{
-			"parameters": {
-				"content": "## 🔄 Keitaro Sync Logs (щоденно о 01:00)\nСинхронізує clicks + conversions за вчора і сьогодні → перебудовує k_daily_stats.\n**POST** `/v2/api/v1/keitaro/sync-logs`\n**Body:** `{ date_from, date_to }`\n**Відповідь синхронна** — без polling'у, результат одразу.\n\ndate_from = позавчора (щоб захопити пізні конверсії)\ndate_to = вчора",
-				"height": 260,
-				"width": 700,
-				"color": 4
-			},
-			"type": "n8n-nodes-base.stickyNote",
-			"typeVersion": 1,
-			"position": [-560, -640],
-			"id": "sticky-kt-sync",
-			"name": "Sticky KT Sync"
-		},
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=❌ *FB Import Failed* (HTTP {{ $json.statusCode }})\n`{{ $json.body.message || JSON.stringify($json.body) }}`",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [740, -960],
+      "id": "tg-reply-err",
+      "name": "Telegram Reply Error",
+      "credentials": {
+        "telegramApi": {
+          "id": "LdEYEJzAEXqpis2J",
+          "name": "MiniApp FB Upload Report File BOT"
+        }
+      }
+    },
 
-		{
-			"parameters": {
-				"rule": {
-					"interval": [
-						{
-							"field": "cronExpression",
-							"expression": "0 0 1 * * *"
-						}
-					]
-				}
-			},
-			"type": "n8n-nodes-base.scheduleTrigger",
-			"typeVersion": 1.3,
-			"position": [-560, -336],
-			"id": "schedule-kt-daily",
-			"name": "Trigger daily 01:00"
-		},
 
-		{
-			"parameters": {
-				"method": "POST",
-				"url": "https://metaminer.flexifyai.pro/v2/api/v1/keitaro/sync-logs",
-				"sendBody": true,
-				"contentType": "raw",
-				"rawContentType": "application/json",
-				"body": "={\n  \"date_from\": \"{{ $now.minus({ days: 2 }).toFormat('yyyy-MM-dd') }}\",\n  \"date_to\": \"{{ $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }}\"\n}",
-				"options": {
-					"response": { "response": { "neverError": true } },
-					"timeout": 600000
-				}
-			},
-			"type": "n8n-nodes-base.httpRequest",
-			"typeVersion": 4.3,
-			"position": [-300, -336],
-			"id": "post-kt-sync-logs",
-			"name": "POST sync-logs"
-		},
+    {
+      "parameters": {
+        "content": "## Keitaro Sync Logs — кожні 15 хв\nСинхронізує k_clicks_log + k_conversions_log + k_daily_stats.\n**POST** `/v2/api/v1/keitaro/sync-logs`\n\ndate_from = вчора (щоб захопити пізні конверсії)\ndate_to   = сьогодні\n\nКліки синхронізуються по 1 дню щоб уникнути 504 від Keitaro.\nПри завантаженні файлів через бота KT sync також відбувається\nавтоматично у фоні (bg_tasks.py) — без участі цього вузла.",
+        "height": 300,
+        "width": 780,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, -560],
+      "id": "sticky-kt-logs",
+      "name": "Sticky KT Logs"
+    },
 
-		{
-			"parameters": {
-				"conditions": {
-					"options": {
-						"caseSensitive": true,
-						"leftValue": "",
-						"typeValidation": "strict",
-						"version": 3
-					},
-					"conditions": [
-						{
-							"id": "cond-kt-success",
-							"leftValue": "={{ $json.success }}",
-							"rightValue": true,
-							"operator": {
-								"type": "boolean",
-								"operation": "true",
-								"singleValue": true
-							}
-						}
-					],
-					"combinator": "and"
-				},
-				"options": {}
-			},
-			"type": "n8n-nodes-base.if",
-			"typeVersion": 2.3,
-			"position": [-40, -336],
-			"id": "if-kt-success",
-			"name": "If KT sync success"
-		},
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0/15 * * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-560, -224],
+      "id": "schedule-kt-15min",
+      "name": "Trigger every 15 min"
+    },
 
-		{
-			"parameters": {
-				"chatId": "8076969558",
-				"text": "=❌ *Keitaro Sync Logs Failed*\n{{ $json.message }}\nErrors: {{ $json.errors ? $json.errors.join(', ') : '—' }}",
-				"additionalFields": {
-					"parse_mode": "Markdown"
-				}
-			},
-			"type": "n8n-nodes-base.telegram",
-			"typeVersion": 1.2,
-			"position": [220, -256],
-			"id": "tg-kt-error",
-			"name": "Telegram KT Sync Error",
-			"credentials": {
-				"telegramApi": {
-					"id": "LdEYEJzAEXqpis2J",
-					"name": "MiniApp FB Upload Report File BOT"
-				}
-			}
-		},
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://metaminer.flexifyai.pro/v2/api/v1/keitaro/sync-logs",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"date_from\": \"{{ $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }}\",\n  \"date_to\": \"{{ $now.toFormat('yyyy-MM-dd') }}\"\n}",
+        "options": {
+          "response": { "response": { "neverError": true } },
+          "timeout": 600000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [-300, -224],
+      "id": "post-kt-sync-logs",
+      "name": "POST sync-logs"
+    },
 
-		{
-			"parameters": {
-				"content": "## 📋 Keitaro Sync Reference (щопонеділка о 02:00)\nОновлює довідники: campaigns, offers, streams, networks, traffic sources, landings.\n**POST** `/v2/api/v1/keitaro/sync-reference`\n**Не потребує параметрів.** Синхронна відповідь.\n\nМожна запустити вручну з інтерфейсу n8n для першого налаштування.",
-				"height": 240,
-				"width": 700,
-				"color": 7
-			},
-			"type": "n8n-nodes-base.stickyNote",
-			"typeVersion": 1,
-			"position": [-560, 80],
-			"id": "sticky-kt-ref",
-			"name": "Sticky KT Reference"
-		},
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "cond-kt-success",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-40, -224],
+      "id": "if-kt-success",
+      "name": "If KT sync success"
+    },
 
-		{
-			"parameters": {
-				"rule": {
-					"interval": [
-						{
-							"field": "cronExpression",
-							"expression": "0 0 2 * * 1"
-						}
-					]
-				}
-			},
-			"type": "n8n-nodes-base.scheduleTrigger",
-			"typeVersion": 1.3,
-			"position": [-560, 384],
-			"id": "schedule-kt-weekly",
-			"name": "Trigger Monday 02:00"
-		},
+    {
+      "parameters": {
+        "chatId": "8076969558",
+        "text": "=❌ *Keitaro Sync Logs Failed*\n{{ $json.message }}\nErrors: {{ $json.errors ? $json.errors.join(', ') : '—' }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [220, -144],
+      "id": "tg-kt-error",
+      "name": "Telegram KT Sync Error",
+      "credentials": {
+        "telegramApi": {
+          "id": "LdEYEJzAEXqpis2J",
+          "name": "MiniApp FB Upload Report File BOT"
+        }
+      }
+    },
 
-		{
-			"parameters": {},
-			"type": "n8n-nodes-base.manualTrigger",
-			"typeVersion": 1,
-			"position": [-560, 512],
-			"id": "manual-trigger-ref",
-			"name": "Manual Trigger"
-		},
 
-		{
-			"parameters": {
-				"method": "POST",
-				"url": "https://metaminer.flexifyai.pro/v2/api/v1/keitaro/sync-reference",
-				"options": {
-					"response": { "response": { "neverError": true } },
-					"timeout": 300000
-				}
-			},
-			"type": "n8n-nodes-base.httpRequest",
-			"typeVersion": 4.3,
-			"position": [-300, 432],
-			"id": "post-kt-sync-ref",
-			"name": "POST sync-reference"
-		},
+    {
+      "parameters": {
+        "content": "## Keitaro Sync Reference — кожну годину\nОновлює довідники: campaigns, offers, streams,\nnetworks, traffic sources, landings, groups.\n**POST** `/v2/api/v1/keitaro/sync-reference`\n\nМожна запустити вручну (Manual Trigger) для першого налаштування.",
+        "height": 220,
+        "width": 780,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, 208],
+      "id": "sticky-kt-ref",
+      "name": "Sticky KT Reference"
+    },
 
-		{
-			"parameters": {
-				"conditions": {
-					"options": {
-						"caseSensitive": true,
-						"leftValue": "",
-						"typeValidation": "strict",
-						"version": 3
-					},
-					"conditions": [
-						{
-							"id": "cond-ref-success",
-							"leftValue": "={{ $json.success }}",
-							"rightValue": true,
-							"operator": {
-								"type": "boolean",
-								"operation": "true",
-								"singleValue": true
-							}
-						}
-					],
-					"combinator": "and"
-				},
-				"options": {}
-			},
-			"type": "n8n-nodes-base.if",
-			"typeVersion": 2.3,
-			"position": [-40, 432],
-			"id": "if-ref-success",
-			"name": "If Reference success"
-		},
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 0/1 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-560, 480],
+      "id": "schedule-kt-hourly",
+      "name": "Trigger every 1 hour"
+    },
 
-		{
-			"parameters": {
-				"chatId": "8076969558",
-				"text": "=✅ *Keitaro Reference Synced*\nCampaigns: {{ $json.details.campaigns || 0 }}\nOffers: {{ $json.details.offers || 0 }}\nStreams: {{ $json.details.streams || 0 }}\nNetworks: {{ $json.details.affiliate_networks || 0 }}",
-				"additionalFields": {
-					"parse_mode": "Markdown"
-				}
-			},
-			"type": "n8n-nodes-base.telegram",
-			"typeVersion": 1.2,
-			"position": [220, 352],
-			"id": "tg-ref-ok",
-			"name": "Telegram Reference OK",
-			"credentials": {
-				"telegramApi": {
-					"id": "LdEYEJzAEXqpis2J",
-					"name": "MiniApp FB Upload Report File BOT"
-				}
-			}
-		},
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-560, 608],
+      "id": "manual-trigger-ref",
+      "name": "Manual Trigger"
+    },
 
-		{
-			"parameters": {
-				"chatId": "8076969558",
-				"text": "=❌ *Keitaro Reference Sync Failed*\n{{ $json.message }}\nErrors: {{ $json.errors ? $json.errors.join(', ') : '—' }}",
-				"additionalFields": {
-					"parse_mode": "Markdown"
-				}
-			},
-			"type": "n8n-nodes-base.telegram",
-			"typeVersion": 1.2,
-			"position": [220, 512],
-			"id": "tg-ref-error",
-			"name": "Telegram Reference Error",
-			"credentials": {
-				"telegramApi": {
-					"id": "LdEYEJzAEXqpis2J",
-					"name": "MiniApp FB Upload Report File BOT"
-				}
-			}
-		}
-	],
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://metaminer.flexifyai.pro/v2/api/v1/keitaro/sync-reference",
+        "options": {
+          "response": { "response": { "neverError": true } },
+          "timeout": 300000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [-300, 528],
+      "id": "post-kt-sync-ref",
+      "name": "POST sync-reference"
+    },
 
-	"connections": {
-		"Telegram Trigger": {
-			"main": [[{ "node": "Filter has document", "type": "main", "index": 0 }]]
-		},
-		"Filter has document": {
-			"main": [[{ "node": "Telegram Get File", "type": "main", "index": 0 }]]
-		},
-		"Telegram Get File": {
-			"main": [
-				[{ "node": "POST FB import-report", "type": "main", "index": 0 }]
-			]
-		},
-		"POST FB import-report": {
-			"main": [[{ "node": "If FB HTTP 200", "type": "main", "index": 0 }]]
-		},
-		"If FB HTTP 200": {
-			"main": [
-				[{ "node": "Telegram Reply OK", "type": "main", "index": 0 }],
-				[{ "node": "Telegram Reply Error", "type": "main", "index": 0 }]
-			]
-		},
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "cond-ref-success",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-40, 528],
+      "id": "if-ref-success",
+      "name": "If Reference success"
+    },
 
-		"Trigger daily 01:00": {
-			"main": [[{ "node": "POST sync-logs", "type": "main", "index": 0 }]]
-		},
-		"POST sync-logs": {
-			"main": [[{ "node": "If KT sync success", "type": "main", "index": 0 }]]
-		},
-		"If KT sync success": {
-			"main": [
-				[],
-				[{ "node": "Telegram KT Sync Error", "type": "main", "index": 0 }]
-			]
-		},
+    {
+      "parameters": {
+        "chatId": "8076969558",
+        "text": "=✅ *Keitaro Reference Synced*\nCampaigns: {{ $json.details.campaigns || 0 }}\nOffers: {{ $json.details.offers || 0 }}\nStreams: {{ $json.details.streams || 0 }}\nNetworks: {{ $json.details.affiliate_networks || 0 }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [220, 448],
+      "id": "tg-ref-ok",
+      "name": "Telegram Reference OK",
+      "credentials": {
+        "telegramApi": {
+          "id": "LdEYEJzAEXqpis2J",
+          "name": "MiniApp FB Upload Report File BOT"
+        }
+      }
+    },
 
-		"Trigger Monday 02:00": {
-			"main": [[{ "node": "POST sync-reference", "type": "main", "index": 0 }]]
-		},
-		"Manual Trigger": {
-			"main": [[{ "node": "POST sync-reference", "type": "main", "index": 0 }]]
-		},
-		"POST sync-reference": {
-			"main": [[{ "node": "If Reference success", "type": "main", "index": 0 }]]
-		},
-		"If Reference success": {
-			"main": [
-				[{ "node": "Telegram Reference OK", "type": "main", "index": 0 }],
-				[{ "node": "Telegram Reference Error", "type": "main", "index": 0 }]
-			]
-		}
-	},
+    {
+      "parameters": {
+        "chatId": "8076969558",
+        "text": "=❌ *Keitaro Reference Sync Failed*\n{{ $json.message }}\nErrors: {{ $json.errors ? $json.errors.join(', ') : '—' }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [220, 608],
+      "id": "tg-ref-error",
+      "name": "Telegram Reference Error",
+      "credentials": {
+        "telegramApi": {
+          "id": "LdEYEJzAEXqpis2J",
+          "name": "MiniApp FB Upload Report File BOT"
+        }
+      }
+    },
 
-	"pinData": {},
-	"meta": {
-		"templateCredsSetupCompleted": true,
-		"instanceId": "a3a43970c40e0b13acda90c067a838dafaf30fd84726258d47aefe5a938a7dd1"
-	}
+
+    {
+      "parameters": {
+        "content": "## Keitaro Live Stats — кожні 15 хв\nВигружає агреговану статистику напряму з Keitaro API (без запису в БД).\n**GET** `/v2/api/v1/keitaro/live-stats?date_from=...&date_to=...&group_by=campaign`\n\ngroup_by: campaign | day | country\nПовертає: clicks, unique_clicks, leads, sales, rejected, revenue, cost, profit",
+        "height": 220,
+        "width": 780,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, 880],
+      "id": "sticky-kt-live",
+      "name": "Sticky KT Live Stats"
+    },
+
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0/15 * * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-560, 1152],
+      "id": "schedule-live-15min",
+      "name": "Trigger live-stats 15 min"
+    },
+
+    {
+      "parameters": {
+        "url": "=https://metaminer.flexifyai.pro/v2/api/v1/keitaro/live-stats?date_from={{ $now.toFormat('yyyy-MM-dd') }}&date_to={{ $now.toFormat('yyyy-MM-dd') }}&group_by=campaign",
+        "options": {
+          "response": { "response": { "neverError": true } },
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [-300, 1152],
+      "id": "get-kt-live-stats",
+      "name": "GET live-stats"
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "cond-live-ok",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-40, 1152],
+      "id": "if-live-has-rows",
+      "name": "If has rows"
+    },
+
+    {
+      "parameters": {
+        "chatId": "8076969558",
+        "text": "=❌ *Keitaro Live Stats Error*\n{{ $json.detail || JSON.stringify($json) }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [220, 1232],
+      "id": "tg-live-error",
+      "name": "Telegram Live Stats Error",
+      "credentials": {
+        "telegramApi": {
+          "id": "LdEYEJzAEXqpis2J",
+          "name": "MiniApp FB Upload Report File BOT"
+        }
+      }
+    }
+
+  ],
+
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{ "node": "Filter has document", "type": "main", "index": 0 }]]
+    },
+    "Filter has document": {
+      "main": [[{ "node": "Telegram Get File", "type": "main", "index": 0 }]]
+    },
+    "Telegram Get File": {
+      "main": [[{ "node": "POST FB import-report", "type": "main", "index": 0 }]]
+    },
+    "POST FB import-report": {
+      "main": [[{ "node": "If FB HTTP 200", "type": "main", "index": 0 }]]
+    },
+    "If FB HTTP 200": {
+      "main": [
+        [{ "node": "Telegram Reply OK", "type": "main", "index": 0 }],
+        [{ "node": "Telegram Reply Error", "type": "main", "index": 0 }]
+      ]
+    },
+
+    "Trigger every 15 min": {
+      "main": [[{ "node": "POST sync-logs", "type": "main", "index": 0 }]]
+    },
+    "POST sync-logs": {
+      "main": [[{ "node": "If KT sync success", "type": "main", "index": 0 }]]
+    },
+    "If KT sync success": {
+      "main": [
+        [],
+        [{ "node": "Telegram KT Sync Error", "type": "main", "index": 0 }]
+      ]
+    },
+
+    "Trigger every 1 hour": {
+      "main": [[{ "node": "POST sync-reference", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger": {
+      "main": [[{ "node": "POST sync-reference", "type": "main", "index": 0 }]]
+    },
+    "POST sync-reference": {
+      "main": [[{ "node": "If Reference success", "type": "main", "index": 0 }]]
+    },
+    "If Reference success": {
+      "main": [
+        [{ "node": "Telegram Reference OK", "type": "main", "index": 0 }],
+        [{ "node": "Telegram Reference Error", "type": "main", "index": 0 }]
+      ]
+    },
+
+    "Trigger live-stats 15 min": {
+      "main": [[{ "node": "GET live-stats", "type": "main", "index": 0 }]]
+    },
+    "GET live-stats": {
+      "main": [[{ "node": "If has rows", "type": "main", "index": 0 }]]
+    },
+    "If has rows": {
+      "main": [
+        [],
+        [{ "node": "Telegram Live Stats Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a3a43970c40e0b13acda90c067a838dafaf30fd84726258d47aefe5a938a7dd1"
+  }
 }

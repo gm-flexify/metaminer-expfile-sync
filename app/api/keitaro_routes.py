@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from datetime import date
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from app.db.models import KCampaign, KDailyStat
 from app.models.schemas import (
     KCampaignOut,
     KeitaroSyncRequest,
+    KtLiveStatsResponse,
     SyncResultResponse,
 )
 from app.services.keitaro_api_service import KeitaroAPIService
@@ -74,6 +76,43 @@ def sync_logs(body: KeitaroSyncRequest, db: Session = Depends(get_db)):
         message="Sync complete" if not errors else f"Partial ({len(errors)} errors)",
         details=details,
         errors=errors,
+    )
+
+
+@router.get("/live-stats", response_model=KtLiveStatsResponse)
+def live_stats(
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+    group_by: str = Query("campaign", description="campaign | day | country"),
+):
+    """Fetch aggregated stats directly from Keitaro report API (no DB write).
+
+    Returns clicks, unique_clicks, leads, sales, rejected, revenue, cost, profit
+    grouped by the selected dimension. Called every 15 min from n8n for live monitoring.
+    """
+    grouping_map: Dict[str, List[str]] = {
+        "campaign": ["ad_campaign_id"],
+        "day":      ["date", "ad_campaign_id"],
+        "country":  ["ad_campaign_id", "country"],
+    }
+    api = _get_api()
+    ok, data, err = api.get_report(
+        date_from=date_from.isoformat(),
+        date_to=date_to.isoformat(),
+        grouping=grouping_map.get(group_by, ["ad_campaign_id"]),
+    )
+    if not ok:
+        raise HTTPException(502, f"Keitaro API error: {err}")
+
+    rows: List[Dict[str, Any]] = (
+        data.get("rows", []) if isinstance(data, dict) else (data or [])
+    )
+    return KtLiveStatsResponse(
+        date_from=date_from.isoformat(),
+        date_to=date_to.isoformat(),
+        group_by=group_by,
+        rows=rows,
+        count=len(rows),
     )
 
 
