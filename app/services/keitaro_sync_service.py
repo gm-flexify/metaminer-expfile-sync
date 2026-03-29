@@ -42,13 +42,28 @@ class SyncResult:
 # Reference table sync helpers
 # ---------------------------------------------------------------------------
 
+def _normalize_api_row(row: Dict) -> Dict:
+    """Fix common Keitaro API quirks before inserting into DB."""
+    r = dict(row)
+    # Keitaro sends 0 for "no reference" — treat as NULL to avoid FK violations
+    for key in ("group_id", "affiliate_network_id", "traffic_source_id",
+                "landing_id", "offer_id", "campaign_id", "stream_id"):
+        if r.get(key) == 0:
+            r[key] = None
+    # country can arrive as a list (MultiGEO offers)
+    if isinstance(r.get("country"), list):
+        r["country"] = ", ".join(str(c) for c in r["country"]) if r["country"] else None
+    return r
+
+
 def _upsert_ref(db: Session, model, pk_field: str, rows: List[Dict], field_map: Dict[str, str]) -> int:
-    """Generic upsert for reference tables. Returns count."""
+    """Generic upsert for reference tables. Uses SAVEPOINTs so one bad row doesn't abort the batch."""
     if not rows:
         return 0
     count = 0
     now = datetime.utcnow()
     for row in rows:
+        row = _normalize_api_row(row)
         pk_val = row.get(pk_field)
         if pk_val is None:
             continue
@@ -57,11 +72,16 @@ def _upsert_ref(db: Session, model, pk_field: str, rows: List[Dict], field_map: 
         pk_col = list(model.__table__.primary_key.columns)[0].name
         values[pk_col] = pk_val
 
-        stmt = insert(model).values(**values)
-        update_cols = {k: getattr(stmt.excluded, k) for k in values if k != pk_col}
-        stmt = stmt.on_conflict_do_update(index_elements=[pk_col], set_=update_cols)
-        db.execute(stmt)
-        count += 1
+        try:
+            stmt = insert(model).values(**values)
+            update_cols = {k: getattr(stmt.excluded, k) for k in values if k != pk_col}
+            stmt = stmt.on_conflict_do_update(index_elements=[pk_col], set_=update_cols)
+            with db.begin_nested():  # SAVEPOINT — rollback only this row on error
+                db.execute(stmt)
+            count += 1
+        except Exception as e:
+            logger.warning("Skip %s id=%s: %s", model.__tablename__, pk_val, e)
+
     db.commit()
     return count
 
