@@ -285,10 +285,7 @@ def sync_clicks_log(db: Session, api: KeitaroAPIService, date_from: str, date_to
         rows = data.get("rows") or data.get("data") or data.get("items") or []
     else:
         rows = []
-    logger.info("clicks/log %s->%s: data type=%s, rows=%d", date_from, date_to, type(data).__name__, len(rows))
-    if rows:
-        logger.info("clicks/log first row keys: %s", list(rows[0].keys()) if isinstance(rows[0], dict) else type(rows[0]))
-        logger.info("clicks/log first row sample: %s", str(rows[0])[:300])
+    logger.info("clicks/log %s->%s: rows=%d", date_from, date_to, len(rows))
     if not rows:
         return SyncResult(success=True, message="No clicks for range", details={"clicks": 0})
 
@@ -397,7 +394,7 @@ def sync_conversions_log(db: Session, api: KeitaroAPIService, date_from: str, da
         rows = data.get("rows") or data.get("data") or data.get("items") or []
     else:
         rows = []
-    logger.info("conversions/log %s->%s: data type=%s, rows=%d", date_from, date_to, type(data).__name__, len(rows))
+    logger.info("conversions/log %s->%s: rows=%d", date_from, date_to, len(rows))
     if not rows:
         return SyncResult(success=True, message="No conversions for range", details={"conversions": 0})
 
