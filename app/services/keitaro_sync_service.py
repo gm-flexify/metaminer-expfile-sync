@@ -279,7 +279,13 @@ def sync_clicks_log(db: Session, api: KeitaroAPIService, date_from: str, date_to
     if not ok:
         return SyncResult(success=False, message=f"API error: {err}", errors=[err or ""])
 
-    rows = data.get("rows", []) if isinstance(data, dict) else []
+    if isinstance(data, list):
+        rows = data
+    elif isinstance(data, dict):
+        rows = data.get("rows") or data.get("data") or data.get("items") or []
+    else:
+        rows = []
+    logger.info("clicks/log %s->%s: data type=%s, rows=%d", date_from, date_to, type(data).__name__, len(rows))
     if not rows:
         return SyncResult(success=True, message="No clicks for range", details={"clicks": 0})
 
@@ -382,7 +388,13 @@ def sync_conversions_log(db: Session, api: KeitaroAPIService, date_from: str, da
     if not ok:
         return SyncResult(success=False, message=f"API error: {err}", errors=[err or ""])
 
-    rows = data.get("rows", []) if isinstance(data, dict) else []
+    if isinstance(data, list):
+        rows = data
+    elif isinstance(data, dict):
+        rows = data.get("rows") or data.get("data") or data.get("items") or []
+    else:
+        rows = []
+    logger.info("conversions/log %s->%s: data type=%s, rows=%d", date_from, date_to, type(data).__name__, len(rows))
     if not rows:
         return SyncResult(success=True, message="No conversions for range", details={"conversions": 0})
 
