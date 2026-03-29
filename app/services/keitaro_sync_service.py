@@ -349,6 +349,34 @@ def sync_clicks_log(db: Session, api: KeitaroAPIService, date_from: str, date_to
     return SyncResult(success=True, message="OK", details={"clicks_synced": count})
 
 
+def sync_clicks_log_chunked(db: Session, api: KeitaroAPIService, date_from: str, date_to: str) -> SyncResult:
+    """Sync clicks one day at a time to avoid Keitaro 504 on large ranges."""
+    from datetime import date as date_cls, timedelta
+
+    d1 = date_cls.fromisoformat(date_from)
+    d2 = date_cls.fromisoformat(date_to)
+    total = 0
+    failed_days: List[str] = []
+
+    current = d1
+    while current <= d2:
+        day = current.isoformat()
+        res = sync_clicks_log(db, api, day, day)
+        if res.success:
+            total += res.details.get("clicks_synced", 0)
+        else:
+            logger.warning("Clicks sync failed for %s: %s", day, res.errors)
+            failed_days.append(day)
+        current += timedelta(days=1)
+
+    return SyncResult(
+        success=len(failed_days) == 0,
+        message="OK" if not failed_days else f"Clicks partial: {len(failed_days)} days failed",
+        details={"clicks_synced": total, "days_failed": len(failed_days), "failed_days": failed_days},
+        errors=[f"clicks 504 on {d}" for d in failed_days],
+    )
+
+
 def sync_conversions_log(db: Session, api: KeitaroAPIService, date_from: str, date_to: str) -> SyncResult:
     ok, data, err = api.get_conversions_log(date_from, date_to)
     if not ok:

@@ -18,6 +18,7 @@ from app.services.keitaro_api_service import KeitaroAPIService
 from app.services.keitaro_sync_service import (
     rebuild_daily_stats,
     sync_clicks_log,
+    sync_clicks_log_chunked,
     sync_conversions_log,
     sync_reference_tables,
 )
@@ -52,7 +53,8 @@ def sync_logs(body: KeitaroSyncRequest, db: Session = Depends(get_db)):
     errors = []
     details = {}
 
-    clicks_res = sync_clicks_log(db, api, body.date_from, body.date_to)
+    # Chunk clicks day-by-day to avoid Keitaro 504 on large date ranges
+    clicks_res = sync_clicks_log_chunked(db, api, body.date_from, body.date_to)
     details["clicks"] = clicks_res.details
     if not clicks_res.success:
         errors.extend(clicks_res.errors)
