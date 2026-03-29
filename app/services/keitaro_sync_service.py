@@ -182,7 +182,7 @@ def sync_reference_tables(db: Session, api: KeitaroAPIService) -> SyncResult:
                     "campaign_id": cid,
                     "name": insert(KStream).excluded.name,
                     "type": insert(KStream).excluded.type,
-                    "schema_": insert(KStream).excluded.schema_,
+                    "schema": s.get("schema"),  # "schema" is reserved — use value directly
                     "position": insert(KStream).excluded.position,
                     "updated_at": now,
                 },
