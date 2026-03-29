@@ -154,3 +154,28 @@ class KeitaroAPIService:
         if filters:
             body["filters"] = filters
         return self._request("POST", "/conversions/log", json_data=body)
+
+    # -- Report endpoint --
+
+    def get_report(
+        self,
+        date_from: str,
+        date_to: str,
+        columns: Optional[List[str]] = None,
+        grouping: Optional[List[str]] = None,
+        filters: Optional[List[Dict]] = None,
+    ) -> Tuple[bool, Optional[Dict], Optional[str]]:
+        default_columns = [
+            "ad_campaign_id",
+            "clicks", "unique_clicks",
+            "leads", "sales", "rejected",
+            "revenue", "cost", "profit",
+        ]
+        body: Dict[str, Any] = {
+            "range": {"from": f"{date_from} 00:00:00", "to": f"{date_to} 23:59:59", "timezone": "UTC"},
+            "columns": columns or default_columns,
+            "grouping": grouping or ["ad_campaign_id"],
+        }
+        if filters:
+            body["filters"] = filters
+        return self._request("POST", "/report/build", json_data=body)
