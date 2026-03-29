@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -17,30 +17,56 @@ from app.models.schemas import (
     FbImportSkippedRow,
 )
 from app.services.fb_import_service import import_fb_report
+from app.services.bg_tasks import acquire_import_slot, release_import_slot, kt_sync_for_date_range
 
 router = APIRouter(prefix="/api/v1/fb", tags=["facebook"])
 
 
 @router.post("/import-report", response_model=FbImportResponse)
 async def import_report(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     dry_run: bool = Query(False),
     date_override: Optional[str] = Query(None, description="YYYY-MM-DD fallback date"),
     db: Session = Depends(get_db),
 ):
-    """Upload XLSX/CSV with FB campaign data. Idempotent: same (campaign_id, date, country) overwrites."""
-    data = await file.read()
-    if not data:
-        raise HTTPException(400, "Empty file")
+    """Upload XLSX/CSV with FB campaign data. Idempotent: same (campaign_id, date, country) overwrites.
 
-    default_date = None
-    if date_override:
-        try:
-            default_date = date.fromisoformat(date_override)
-        except ValueError:
-            raise HTTPException(400, f"Invalid date_override format: {date_override}")
+    After successful import automatically triggers Keitaro sync for the same date range
+    (clicks + conversions + rebuild k_daily_stats) as a background task.
 
-    result = import_fb_report(db, data, file.filename or "upload.xlsx", default_date, dry_run)
+    Concurrent uploads: max 3 simultaneous file imports allowed (429 if exceeded).
+    """
+    # ── Concurrency limit: max 3 parallel file imports ──────────────────────
+    if not acquire_import_slot():
+        raise HTTPException(
+            status_code=429,
+            detail="Too many concurrent imports. Please retry in a few seconds.",
+        )
+
+    try:
+        data = await file.read()
+        if not data:
+            raise HTTPException(400, "Empty file")
+
+        default_date = None
+        if date_override:
+            try:
+                default_date = date.fromisoformat(date_override)
+            except ValueError:
+                raise HTTPException(400, f"Invalid date_override format: {date_override}")
+
+        result = import_fb_report(db, data, file.filename or "upload.xlsx", default_date, dry_run)
+    finally:
+        release_import_slot()
+
+    # ── Auto KT sync for imported date range (background, non-blocking) ─────
+    if result.success and not dry_run and result.insights_upserted > 0 and result.date_min and result.date_max:
+        background_tasks.add_task(
+            kt_sync_for_date_range,
+            result.date_min.isoformat(),
+            result.date_max.isoformat(),
+        )
 
     return FbImportResponse(
         success=result.success,

@@ -241,6 +241,8 @@ class FbImportResult:
     insights_upserted: int = 0
     skipped: List[FbImportSkipped] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
+    date_min: Optional[date] = None
+    date_max: Optional[date] = None
 
 
 def import_fb_report(
@@ -324,6 +326,10 @@ def import_fb_report(
             "unique_ctr": _safe_decimal(rec.get("unique_ctr")),
         })
 
+    all_dates = [r["data_date"] for r in insight_rows if r.get("data_date")]
+    date_min = min(all_dates) if all_dates else None
+    date_max = max(all_dates) if all_dates else None
+
     if dry_run:
         return FbImportResult(
             success=True,
@@ -331,6 +337,8 @@ def import_fb_report(
             campaigns_upserted=len(campaign_rows),
             insights_upserted=len(insight_rows),
             skipped=skipped,
+            date_min=date_min,
+            date_max=date_max,
         )
 
     try:
@@ -413,4 +421,6 @@ def import_fb_report(
         campaigns_upserted=len(campaign_rows),
         insights_upserted=len(insight_rows),
         skipped=skipped,
+        date_min=date_min,
+        date_max=date_max,
     )
