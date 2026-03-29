@@ -167,7 +167,7 @@ class KeitaroAPIService:
     ) -> Tuple[bool, Optional[Dict], Optional[str]]:
         default_columns = [
             "ad_campaign_id",
-            "clicks", "unique_clicks",
+            "clicks", "campaign_unique_clicks",
             "leads", "sales", "rejected",
             "revenue", "cost", "profit",
         ]
