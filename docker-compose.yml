@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: expfile_sync_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-expfile_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-expfile_password}
+      POSTGRES_DB: ${POSTGRES_DB:-expfile_sync}
+    volumes:
+      - expfile_sync_pg_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-expfile_user} -d ${POSTGRES_DB:-expfile_sync}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expfile_sync_network
+
+  app:
+    build: .
+    container_name: expfile_sync_app
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-expfile_user}:${POSTGRES_PASSWORD:-expfile_password}@db:5432/${POSTGRES_DB:-expfile_sync}
+      DATABASE_ECHO: ${DATABASE_ECHO:-false}
+      ROOT_PATH: ${ROOT_PATH:-}
+    ports:
+      - "${APP_PORT:-8010}:8000"
+    volumes:
+      - ${APP_RELOAD:-./app}:/app/app:${APP_RELOAD_MODE:-ro}
+      - ./tests:/app/tests:ro
+      - ./pytest.ini:/app/pytest.ini:ro
+      - ./alembic:/app/alembic:ro
+      - ./logs:/app/logs
+    command: >
+      sh -c "python wait_for_db.py &&
+             alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - expfile_sync_network
+
+volumes:
+  expfile_sync_pg_data:
+
+networks:
+  expfile_sync_network:
+    driver: bridge

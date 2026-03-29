@@ -1,0 +1,176 @@
+{
+  "name": "ExpFile Sync — Telegram FB Import",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Import XLSX/CSV via Telegram bot\nTelegram Trigger → Filter document → Get File → POST /api/v1/fb/import-report on port 8010.\nReply with import results.\n**Connect your Telegram credentials** to Trigger, Get File and Reply nodes.",
+        "height": 240,
+        "width": 480,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, -200],
+      "id": "sticky-info",
+      "name": "Sticky Info"
+    },
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [-560, 80],
+      "id": "tg-trigger",
+      "name": "Telegram Trigger",
+      "webhookId": "expfile-tg-trigger",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "cond-doc",
+              "leftValue": "={{ $json.message.document.file_id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [-320, 80],
+      "id": "filter-doc",
+      "name": "Filter has document"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.message.document.file_id }}",
+        "download": true,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [-80, 80],
+      "id": "tg-get-file",
+      "name": "Telegram Get File",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_SERVER:8010/api/v1/fb/import-report?dry_run=false",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "response": { "response": { "neverError": true, "fullResponse": true } },
+          "timeout": 300000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [160, 80],
+      "id": "http-import",
+      "name": "POST import-report"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "cond-200",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": { "type": "number", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [400, 80],
+      "id": "if-200",
+      "name": "If HTTP 200"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ '✅ FB Import OK\\nCampaigns: ' + $json.body.campaigns_upserted + '\\nInsights: ' + $json.body.insights_upserted + '\\nSkipped: ' + ($json.body.skipped ? $json.body.skipped.length : 0) }}",
+        "additionalFields": { "appendAttribution": false }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [640, 0],
+      "id": "tg-reply-ok",
+      "name": "Reply OK",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ '❌ Import failed (HTTP ' + $json.statusCode + ')\\n' + (typeof $json.body === 'string' ? $json.body : JSON.stringify($json.body)) }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [640, 160],
+      "id": "tg-reply-err",
+      "name": "Reply Error",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": { "main": [[{ "node": "Filter has document", "type": "main", "index": 0 }]] },
+    "Filter has document": { "main": [[{ "node": "Telegram Get File", "type": "main", "index": 0 }]] },
+    "Telegram Get File": { "main": [[{ "node": "POST import-report", "type": "main", "index": 0 }]] },
+    "POST import-report": { "main": [[{ "node": "If HTTP 200", "type": "main", "index": 0 }]] },
+    "If HTTP 200": {
+      "main": [
+        [{ "node": "Reply OK", "type": "main", "index": 0 }],
+        [{ "node": "Reply Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": { "templateCredsSetupCompleted": true }
+}
