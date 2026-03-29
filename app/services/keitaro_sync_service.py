@@ -286,6 +286,9 @@ def sync_clicks_log(db: Session, api: KeitaroAPIService, date_from: str, date_to
     else:
         rows = []
     logger.info("clicks/log %s->%s: data type=%s, rows=%d", date_from, date_to, type(data).__name__, len(rows))
+    if rows:
+        logger.info("clicks/log first row keys: %s", list(rows[0].keys()) if isinstance(rows[0], dict) else type(rows[0]))
+        logger.info("clicks/log first row sample: %s", str(rows[0])[:300])
     if not rows:
         return SyncResult(success=True, message="No clicks for range", details={"clicks": 0})
 
