@@ -301,7 +301,7 @@ def sync_clicks_log(db: Session, api: KeitaroAPIService, date_from: str, date_to
     now = datetime.utcnow()
     count = 0
     for r in rows:
-        cid = r.get("click_id") or r.get("id")
+        cid = r.get("click_id") or r.get("event_id") or r.get("id")
         if not cid:
             continue
         db.execute(
@@ -409,7 +409,7 @@ def sync_conversions_log(db: Session, api: KeitaroAPIService, date_from: str, da
     now = datetime.utcnow()
     count = 0
     for r in rows:
-        cid = r.get("conversion_id") or r.get("id")
+        cid = r.get("conversion_id") or r.get("event_id") or r.get("id")
         if not cid:
             continue
         db.execute(
